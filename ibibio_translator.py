@@ -48,6 +48,36 @@ def save_translation(english_text, ibibio_translation, cluster):
     with open('translations.json', 'w') as f:
         json.dump(st.session_state['clusters'], f, indent=4)
 
+# Apply custom styles
+st.markdown(
+    """
+    <style>
+    .stButton > button {
+        background-color: orange;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        padding: 10px 20px;
+        font-size: 16px;
+        margin: 5px 0;
+    }
+    .stButton > button:hover {
+        background-color: green;
+        color: white;
+    }
+    .stTextInput > div > input {
+        border: 2px solid green;
+        border-radius: 5px;
+    }
+    .stAudio > audio {
+        border: 2px solid orange;
+        border-radius: 5px;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 # Streamlit app interface
 st.title("English to Ibibio Translation App")
 st.write("Generate a random English word or sentence and provide its translation in Ibibio.")
