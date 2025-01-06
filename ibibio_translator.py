@@ -6,6 +6,7 @@ from gtts import gTTS
 from io import BytesIO
 import soundfile as sf
 import numpy as np
+import streamlit_webrtc as webrtc
 
 # Initialize clustering data
 if 'clusters' not in st.session_state:
@@ -66,6 +67,19 @@ ibibio_translation = st.text_input("Provide the Ibibio translation in text:")
 
 # Optionally, get an audio translation
 st.write("Or provide the Ibibio translation as audio:")
+
+# Audio recording option
+st.write("Record your audio translation:")
+webrtc_ctx = webrtc.streamlit_webrtc(
+    key="translation-audio-recorder",
+    mode=webrtc.ClientSettings.MODE.SENDONLY,
+    media_stream_constraints={
+        "audio": True,
+        "video": False,
+    },
+    rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
+)
+
 audio_file = st.file_uploader("Upload audio file in .wav format:", type=["wav"])
 if audio_file is not None:
     audio_data, samplerate = sf.read(audio_file)
@@ -76,13 +90,16 @@ cluster_name = st.text_input("Enter a cluster name for this translation:")
 
 # Save the translation
 if st.button("Save Translation"):
-    if not ibibio_translation and not audio_file:
+    if not ibibio_translation and not audio_file and not (webrtc_ctx and webrtc_ctx.state.playing):
         st.warning("Please provide the Ibibio translation in either text or audio.")
     elif not cluster_name:
         st.warning("Please provide a cluster name.")
     else:
-        save_translation(st.session_state['current_text'], ibibio_translation or "Audio provided", cluster_name)
-        st.success("Translation saved successfully!")
+        if webrtc_ctx and webrtc_ctx.state.playing:
+            st.warning("Currently, audio recording cannot be saved directly. Please upload a recorded file.")
+        else:
+            save_translation(st.session_state['current_text'], ibibio_translation or "Audio provided", cluster_name)
+            st.success("Translation saved successfully!")
 
 # Display saved clusters
 st.write("## Saved Clusters")
