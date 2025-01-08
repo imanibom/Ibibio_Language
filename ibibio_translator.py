@@ -1,10 +1,11 @@
 import streamlit as st
 import random
-import os
 import json
 from gtts import gTTS
 from io import BytesIO
 import soundfile as sf
+import tempfile
+from pydub import AudioSegment
 
 # Initialize clustering data
 if 'clusters' not in st.session_state:
@@ -27,11 +28,31 @@ def generate_random_text():
 
 def text_to_audio(text):
     """Convert text to audio using gTTS."""
-    tts = gTTS(text)
+    tts = gTTS(text, lang='en')
     audio_buffer = BytesIO()
     tts.write_to_fp(audio_buffer)
     audio_buffer.seek(0)
     return audio_buffer
+
+def merge_audio(english_audio, ibibio_audio):
+    """Merge English and Ibibio audio into one file."""
+    english_segment = AudioSegment.from_file(english_audio, format="mp3")
+    if ibibio_audio:
+        ibibio_segment = AudioSegment.from_file(ibibio_audio, format="wav")
+        combined_audio = english_segment + AudioSegment.silent(duration=500) + ibibio_segment
+    else:
+        combined_audio = english_segment
+    output_buffer = BytesIO()
+    combined_audio.export(output_buffer, format="mp3")
+    output_buffer.seek(0)
+    return output_buffer
+
+@st.cache_data(ttl=180)
+def get_cached_audio(english_text, ibibio_audio_file):
+    """Cache the merged audio for 3 minutes."""
+    english_audio = text_to_audio(english_text)
+    merged_audio = merge_audio(english_audio, ibibio_audio_file)
+    return merged_audio
 
 def save_translation(english_text, ibibio_translation, cluster):
     """Save the translation to the appropriate cluster."""
@@ -46,35 +67,18 @@ def save_translation(english_text, ibibio_translation, cluster):
     with open('translations.json', 'w') as f:
         json.dump(st.session_state['clusters'], f, indent=4)
 
-# Apply custom styles
-st.markdown(
-    """
-    <style>
-    .stButton > button {
-        background-color: orange;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        padding: 10px 20px;
-        font-size: 16px;
-        margin: 5px 0;
-    }
-    .stButton > button:hover {
-        background-color: green;
-        color: white;
-    }
-    .stTextInput > div > input {
-        border: 2px solid green;
-        border-radius: 5px;
-    }
-    .stAudio > audio {
-        border: 2px solid orange;
-        border-radius: 5px;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+def load_clusters():
+    """Load clusters from the file if available."""
+    try:
+        with open('translations.json', 'r') as f:
+            st.session_state['clusters'] = json.load(f)
+    except FileNotFoundError:
+        st.session_state['clusters'] = {}
+
+# Load clusters at the start
+if 'clusters_loaded' not in st.session_state:
+    load_clusters()
+    st.session_state['clusters_loaded'] = True
 
 # Streamlit app interface
 st.title("English to Ibibio Translation App")
@@ -103,6 +107,17 @@ if audio_file is not None:
 # Input cluster name
 cluster_name = st.text_input("Enter a cluster name for this translation:")
 
+# Merge and cache audio for download
+if st.button("Generate Combined Audio"):
+    merged_audio = get_cached_audio(st.session_state['current_text'], audio_file)
+    st.audio(merged_audio, format="audio/mp3")
+    st.download_button(
+        "Download Combined Audio",
+        data=merged_audio,
+        file_name="combined_audio.mp3",
+        mime="audio/mp3"
+    )
+
 # Save the translation
 if st.button("Save Translation"):
     if not ibibio_translation and not audio_file:
@@ -114,12 +129,25 @@ if st.button("Save Translation"):
         save_translation(st.session_state['current_text'], translation, cluster_name)
         st.success("Translation saved successfully!")
 
-# Display saved clusters
+# Display saved clusters with edit and delete options
 st.write("## Saved Clusters")
 if st.session_state['clusters']:
     for cluster, translations in st.session_state['clusters'].items():
         st.write(f"### Cluster: {cluster}")
-        for item in translations:
+        for idx, item in enumerate(translations):
             st.write(f"- English: {item['English']}, Ibibio: {item['Ibibio']}")
+            if st.button(f"Delete [{idx}] from {cluster}"):
+                translations.pop(idx)
+                st.experimental_rerun()
 else:
     st.write("No translations saved yet.")
+
+# Download translations as JSON
+if st.button("Download Translations as JSON"):
+    json_data = json.dumps(st.session_state['clusters'], indent=4)
+    st.download_button(
+        "Download JSON",
+        data=json_data,
+        file_name="translations.json",
+        mime="application/json"
+    )
