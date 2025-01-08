@@ -12,11 +12,17 @@ if 'clusters' not in st.session_state:
     st.session_state['clusters'] = {}
 
 # Define a list of random English words and sentences
+akwa_ibom_anthem = """Let us rise Akwa Ibom State To the fate of greatness 
+Oh Akwa Abasi Ibom Let our dream be ever one Rise above ethnicity,
+Build in love our promise land Forward ever, 
+backward never Serve the land in unity and love."""
 WORDS = ["apple", "banana", "computer", "house", "sun"]
 SENTENCES = [
     "The quick brown fox jumps over the lazy dog.",
     "A journey of a thousand miles begins with a single step.",
-    "To be or not to be, that is the question.",
+    "To be or not to be, that is the question.", akwa_ibom_anthem,
+    "Christy Essien-Igbokwe composed and performed the informal Akwa Ibom anthem",
+    "Christy Essien-Igbokwe composed Akwa Ibom Mmi (My Akwa Ibom)\, in 1987."
 ]
 
 def generate_random_text():
